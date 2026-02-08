@@ -1,6 +1,30 @@
 # Abba Medix E2E Tests
 
-Playwright E2E test suite for the Abba Medix WooCommerce site at `https://shop-abbamedix.sandbox.onample.com`.
+Playwright E2E test suite for the Abba Medix WooCommerce cannabis e-commerce site at `https://shop-abbamedix.sandbox.onample.com`.
+
+---
+
+## Current Status (Feb 2026)
+
+### DONE: Public Browsing Tests (50 concurrent users)
+
+- **50 browsing sessions** across 10 GitHub Actions machines (10 shards x 5 workers)
+- All **10 product categories** covered (5 sessions per category)
+- **Product filters** tested: THC range slider, CBD range slider, sort order, strain/brand/size checkboxes
+- **Homepage search** tested with terms: "flowers", "preroll", "strawberry"
+- Every session records **video** of the full user journey
+- HTML report with embedded videos uploaded to `https://groiq.ca/e2e/50-users/index.html`
+- Workflow: `.github/workflows/e2e-public.yml` (manual trigger via GitHub UI)
+- **Last successful run**: All 50 sessions passed (Run ID: 21792016730)
+
+### TODO: Order Flow Tests (needs 10 test accounts)
+
+- Test specs are **scaffolded and ready** in `tests/orders/`
+- Page objects for login, shop, cart, checkout are **already built**
+- `tests/fixtures/test-data.ts` has **placeholder accounts** (email/password = CHANGE_ME)
+- **Waiting for**: 10 real test account credentials from the client
+- Once accounts are provided, update `test-data.ts` and the order tests should work
+- See "Next Steps for Order Tests" section below
 
 ---
 
@@ -13,16 +37,12 @@ npm install
 # 2. Install Playwright browsers
 npx playwright install chromium
 
-# 3. Add your test account credentials in tests/fixtures/test-data.ts
+# 3. Run public browsing tests locally (10 sessions)
+npm run test:public
 
-# 4. Run all tests
-npm test
-
-# 5. Save report with timestamp
-npm run report:save
-
-# 6. Upload to company website
-npm run report:upload
+# 4. Or trigger 50-user run on GitHub Actions
+# Go to: https://github.com/mapperkids/abbamedix-e2e/actions
+# Click "E2E Public Browsing (50 concurrent users)" > "Run workflow"
 ```
 
 ---
@@ -31,19 +51,22 @@ npm run report:upload
 
 ```
 abbamedix-e2e/
-├── playwright.config.ts           # Main config: video, workers, retries, browsers
-├── package.json                   # Scripts: test, report:save, report:upload
-├── tsconfig.json
+├── playwright.config.ts           # Main config: video, user-agent, BrowserStack, projects
+├── package.json                   # Scripts: test:public, test:orders, report:upload
+├── .env                           # BrowserStack credentials (gitignored)
+├── .github/
+│   └── workflows/
+│       └── e2e-public.yml         # GitHub Actions: 10 shards x 5 workers = 50 users
 │
 ├── tests/
 │   ├── fixtures/
-│   │   ├── test-data.ts           # ** THE MAIN FILE TO EDIT **
-│   │   │                          #    - Test accounts (credentials)
-│   │   │                          #    - Product categories (routes)
-│   │   │                          #    - Order scenarios (what each session does)
+│   │   ├── test-data.ts           # Test accounts, categories, order scenarios
+│   │   ├── public-routes.ts       # 50 public browsing scenarios with filters + search
 │   │   ├── auth.setup.ts          # Logs in each account, saves cookies
-│   │   └── base-test.ts           # Custom test fixture (handles age gate + auth)
+│   │   └── base-test.ts           # Custom test fixture (handles auth)
 │   │
+│   ├── public/
+│   │   └── public-browse.spec.ts  # 50 browsing sessions with filter + search logic
 │   ├── smoke/
 │   │   └── smoke.spec.ts          # Homepage, nav, all categories load
 │   ├── auth/
@@ -55,7 +78,7 @@ abbamedix-e2e/
 │       └── parallel-orders.spec.ts      # 10 parallel sessions, each different scenario
 │
 ├── page-objects/                  # All selectors live here (Page Object Model)
-│   ├── age-gate.page.ts           # "Are you 19?" popup
+│   ├── age-gate.page.ts           # Age gate popup (currently DISABLED on site)
 │   ├── login.page.ts              # /my-account/ login form
 │   ├── shop.page.ts               # Product listing, size swatches, add to cart
 │   ├── cart.page.ts               # Cart items, remove, update qty, checkout button
@@ -63,333 +86,228 @@ abbamedix-e2e/
 │   └── nav.page.ts                # Top navigation, cart icon, account icon
 │
 ├── scripts/
+│   ├── browserstack-report.ts     # Pull BrowserStack results + generate HTML report
 │   ├── save-report.sh             # Saves report to reports-history/<timestamp>/
-│   └── upload-report.sh           # Uploads reports-history/ to your company server
+│   └── upload-report.sh           # Upload reports to company server
 │
 ├── auth-states/                   # Auto-generated: saved login cookies per account
 ├── test-results/                  # Auto-generated: videos, screenshots, traces
 ├── playwright-report/             # Auto-generated: HTML report after each run
-└── reports-history/               # Timestamped archive of all past reports
+└── reports-history/               # Timestamped archive of past reports
 ```
 
 ---
 
-## Configuration: `tests/fixtures/test-data.ts`
+## GitHub Actions: 50 Concurrent Users
 
-This is the **single file** that controls everything. An AI agent or developer only needs to edit this file to scale tests or add routes.
+The workflow at `.github/workflows/e2e-public.yml` runs on `workflow_dispatch` (manual trigger).
 
-### Test Accounts
+**How it works:**
+1. **10 parallel GitHub Actions runners** each get a shard (1/10 through 10/10)
+2. Each runner launches **5 Chromium browsers** (`--workers=5`)
+3. Total: **50 simultaneous browser sessions from 10 different machines/IPs**
+4. Each session uses `--reporter=blob` for later merging
+5. After all 10 shards finish, `merge-reports` job combines everything into one HTML report
+6. Videos are bundled into the report artifact
 
-Each account = one parallel browser session. Workers auto-scale to match.
+**Artifacts produced:**
+- `e2e-full-report-with-videos` — HTML report with embedded session videos
+- `e2e-all-videos` — All 50 video recordings separately
+- `blob-report-shard-{1-10}` — Raw blob reports per shard
+- `test-results-shard-{1-10}` — Raw test results per shard
+
+**GitHub repo:** `https://github.com/mapperkids/abbamedix-e2e`
+- Push uses HTTPS + personal access token (SSH key is linked to a different account)
+- Token needs `workflow` scope to push `.github/workflows/` changes
+
+---
+
+## Public Browsing Test Details
+
+### What Each Session Does
+
+Each of the 50 sessions follows this journey:
+1. **Land on homepage** and scroll
+2. **Search for a product** (sessions 11-13 search "flowers", "preroll", "strawberry")
+3. **Visit 2 content pages** (About Us, Blog, Cannabis Info, etc.)
+4. **Browse a product category** (one of 10 categories)
+5. **Apply filters** — THC range, CBD range, sort order, strain/brand/size checkboxes
+6. **Hover over products** in the grid
+7. **Click into a product detail page**, scroll through details, try size swatches
+8. **Go back to category**, click a second product
+9. **Return to homepage**
+
+### Filter Selectors (Amplefilter plugin)
+
+| Filter | Selector |
+|--------|----------|
+| THC min input | `#thc-dual-range-min-input` |
+| THC max input | `#thc-dual-range-max-input` |
+| THC apply button | `button.ample-dual-range-apply[data-slider="thc-dual-range"]` |
+| CBD min input | `#cbd-dual-range-min-input` |
+| CBD max input | `#cbd-dual-range-max-input` |
+| CBD apply button | `button.ample-dual-range-apply[data-slider="cbd-dual-range"]` |
+| Sort dropdown | `select.orderby` or `.orderby` |
+| Strain/Brand/Size | Text labels clicked directly (e.g., `text="Indica"`) |
+| Search input | `input.e-search-input[name="s"]` |
+| Search submit | `button.e-search-submit` |
+
+### Categories (all 10 covered)
+
+| Category | Path | Sessions |
+|----------|------|----------|
+| Dried Flower | `/product-filter/dried-flower-dried-flower` | 1,11,21,31,41 |
+| Edibles | `/product-filter/edibles-edibles` | 2,12,22,32,42 |
+| Topicals | `/product-filter/topical~topicals-topicals` | 3,13,23,33,43 |
+| Extracts | `/product-filter/capsules~extracts-extracts~oil~sublingual-strips` | 4,14,24,34,44 |
+| Vapes | `/product-filter/vapes-vapes` | 5,15,25,35,45 |
+| Pre-Rolls | `/product-filter/pre-rolls-pre-rolls` | 6,16,26,36,46 |
+| Beverages | `/product-filter/beverages-beverages` | 7,17,27,37,47 |
+| Concentrates | `/product-filter/concentrates-concentrates` | 8,18,28,38,48 |
+| Medical | `/product-filter/inhaler~suppository` | 9,19,29,39,49 |
+| Accessories | `/product-filter/accessories-accessories` | 10,20,30,40,50 |
+
+---
+
+## BrowserStack Integration (Optional)
+
+Configured but not primary. Free plan only allows 5 parallel sessions.
+
+```bash
+# Set credentials in .env (see .env.example)
+BROWSERSTACK_USERNAME=your_username
+BROWSERSTACK_ACCESS_KEY=your_access_key
+
+# Run on BrowserStack
+npm run test:browserstack
+```
+
+---
+
+## Report Hosting
+
+Reports are uploaded to **groiq.ca/e2e/** via FTP:
+- FTP credentials stored locally (ask team lead)
+- 20-user report: `https://groiq.ca/e2e/index.html`
+- 50-user report: `https://groiq.ca/e2e/50-users/index.html`
+
+---
+
+## Next Steps for Order Tests
+
+When the client provides 10 test account credentials:
+
+### 1. Update test accounts
+
+Edit `tests/fixtures/test-data.ts`:
 
 ```ts
 export const TEST_ACCOUNTS = [
-  { email: 'tester1@example.com', password: 'password1' },
-  { email: 'tester2@example.com', password: 'password2' },
-  // Add more accounts = more parallel sessions
-  // Remove accounts = fewer sessions
+  { email: 'real-account1@example.com', password: 'real-password1' },
+  { email: 'real-account2@example.com', password: 'real-password2' },
+  // ... all 10 accounts
 ];
 ```
 
-| Want this many sessions? | Add this many accounts |
-|---|---|
-| 5 | 5 accounts in the array |
-| 10 | 10 accounts |
-| 20 | 20 accounts |
-| 50 | 50 accounts (for load testing) |
+### 2. Verify selectors
 
-### Product Categories (Test Routes)
+The page objects in `page-objects/` have selectors based on site inspection, but the order flow (add-to-cart, cart, checkout) needs live testing with a logged-in account. Key things to verify:
 
-Each entry is a browseable product category on the site.
+- **Age gate**: Currently disabled on site. If re-enabled, `age-gate.page.ts` handles it.
+- **Login form**: `#username`, `#password`, `#login-submit-btn` — login button is disabled by default, enabled via JS.
+- **Add to cart**: Size swatches use `.swatch-item` spans. Quantity buttons may be disabled for non-logged-in users.
+- **Cart page**: AJAX updates — always use `waitForLoadState` after actions.
+- **Checkout**: May use Select2 for country/state dropdowns. Payment method selectors need verification.
 
-```ts
-export const CATEGORIES = [
-  { name: 'Dried Flower', path: '/product-filter/dried-flower-dried-flower' },
-  { name: 'Edibles',      path: '/product-filter/edibles-edibles' },
-  // ... existing categories
-];
-```
-
-**Current categories discovered from the live site:**
-
-| Category | URL Path |
-|---|---|
-| Dried Flower | `/product-filter/dried-flower-dried-flower` |
-| Edibles | `/product-filter/edibles-edibles` |
-| Topicals | `/product-filter/topical~topicals-topicals` |
-| Extracts | `/product-filter/capsules~extracts-extracts~oil~sublingual-strips` |
-| Vapes | `/product-filter/vapes-vapes` |
-| Pre-Rolls | `/product-filter/pre-rolls-pre-rolls` |
-| Beverages | `/product-filter/beverages-beverages` |
-| Concentrates | `/product-filter/concentrates-concentrates` |
-| Medical | `/product-filter/inhaler~suppository` |
-| Accessories | `/product-filter/accessories-accessories` |
-
-### Order Scenarios
-
-Each scenario defines what one parallel session does during the test.
-
-```ts
-export const ORDER_SCENARIOS = [
-  {
-    name: 'Dried Flower - single item',  // Test name (shows in report)
-    accountIndex: 0,                      // Which TEST_ACCOUNTS[index] to use
-    category: CATEGORIES[0],              // Which category to browse
-    productIndex: 0,                      // Pick the Nth in-stock product (0-based)
-    sizeLabel: '5 g',                     // Size swatch to select (null = auto-pick first)
-    quantity: 1,                          // How many to add
-  },
-  // Add more scenarios for more test coverage
-];
-```
-
----
-
-## How to Add New Test Routes
-
-### Step 1: Discover the route
-
-Use Playwright to browse the site and find the URL:
+### 3. Run order tests
 
 ```bash
-# Open the site in a headed browser
-npx playwright open https://shop-abbamedix.sandbox.onample.com
-```
+# Run order flow tests locally
+npm run test:orders
 
-Navigate to the new page/category and copy the URL path.
-
-### Step 2: Add the category
-
-In `tests/fixtures/test-data.ts`, add to `CATEGORIES`:
-
-```ts
-export const CATEGORIES = [
-  // ... existing
-  { name: 'New Category', path: '/product-filter/new-category-slug' },
-];
-```
-
-### Step 3: Add a test scenario
-
-In the same file, add to `ORDER_SCENARIOS`:
-
-```ts
-export const ORDER_SCENARIOS = [
-  // ... existing
-  {
-    name: 'New Category - test description',
-    accountIndex: 5,           // use account #6
-    category: CATEGORIES[10],  // index of the new category
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 1,
-  },
-];
-```
-
-### Step 4: Run
-
-```bash
+# Or all tests including auth
 npm test
 ```
 
-The new route is automatically picked up by `parallel-orders.spec.ts` and `smoke.spec.ts`.
+### 4. Create GitHub Actions workflow for order tests
+
+Similar to `e2e-public.yml` but with stored credentials (GitHub Secrets) and fewer shards (10 sessions = 2 shards x 5 workers).
 
 ---
 
-## How to Add a New Test Section (e.g. Wishlist, Account Settings)
+## Known Issues & Workarounds
 
-### Step 1: Create a page object
-
-```bash
-# Create a new page object for the feature
-# File: page-objects/wishlist.page.ts
-```
-
-```ts
-import { Page, Locator } from '@playwright/test';
-
-export class WishlistPage {
-  constructor(private page: Page) {}
-
-  async goto() {
-    await this.page.goto('/wishlist/');
-  }
-
-  async addItem(productName: string) {
-    // Add selectors discovered from the site
-  }
-}
-```
-
-### Step 2: Create a test file
-
-```bash
-# Create test file in the appropriate directory
-# File: tests/wishlist/wishlist.spec.ts
-```
-
-```ts
-import { test, expect } from '../fixtures/base-test';
-import { WishlistPage } from '../../page-objects/wishlist.page';
-
-test.describe('Wishlist', () => {
-  test('can add product to wishlist', async ({ page }) => {
-    const wishlist = new WishlistPage(page);
-    // ... test logic
-  });
-});
-```
-
-### Step 3: Run
-
-```bash
-npm test
-# or just the new tests:
-npx playwright test tests/wishlist/
-```
+| Issue | Workaround |
+|-------|-----------|
+| **Cloudflare blocks HeadlessChrome** | Real Chrome user-agent set in `playwright.config.ts` |
+| **`page.goto('/')` times out** | Use `{ waitUntil: 'domcontentloaded' }` — third-party scripts (Klaviyo, Weglot) keep `load` event pending |
+| **Navigation clicks timeout** | Wrap with `Promise.all([page.waitForLoadState('domcontentloaded'), element.click()])` |
+| **Local machine can't handle 10+ Chromium instances** | Use GitHub Actions (10 machines) instead of local. Local i5/20GB/WSL2 causes flaky failures. |
+| **SSH push denied (raymondlee-groweriq)** | SSH key linked to different GitHub account. Use HTTPS + personal access token instead. |
+| **GitHub token needs `workflow` scope** | First token was missing this scope. Regenerate with `workflow` scope if push fails. |
+| **Age gate popup** | Currently disabled on site. `age-gate.page.ts` exists if re-enabled. |
 
 ---
 
-## Selectors Reference
+## WooCommerce-Specific Notes
 
-All selectors are in `page-objects/`. If the site's HTML changes, update selectors in ONE place.
-
-### Age Gate (`age-gate.page.ts`)
-
-| Element | Selector |
-|---|---|
-| Yes button | `button.age-gate__submit--yes` |
-| No button | `button.age-gate__submit--no` |
-| Remember me | `input.age-gate__remember-field` |
-| Wrapper (to detect visibility) | `.age-gate__wrapper` |
-
-### Login (`login.page.ts`)
-
-| Element | Selector |
-|---|---|
-| Email / Client-ID | `#username` |
-| Password | `#password` |
-| Login button | `#login-submit-btn` |
-| Forgot password email | `#forgot-email` |
-| Reset password button | `#reset-password-btn` |
-| Logged-in indicator | `.woocommerce-MyAccount-navigation` |
-| Login error | `.woocommerce-error` |
-
-### Shop / Product Listing (`shop.page.ts`)
-
-| Element | Selector |
-|---|---|
-| All product cards | `li.product` |
-| In-stock products | `li.product.instock` |
-| Product title | `.woocommerce-loop-product__title` |
-| Size swatch | `.swatch-item[data-value="5 g"]` |
-| Disabled swatch (out of stock) | `.swatch-item.disabled` |
-| Quantity input | `input.quantity` |
-| Quantity minus button | `button.qty-minus` |
-| Quantity plus button | `button.qty-plus` |
-| Add to cart button | `.single_add_to_cart_button:not(.notify-me-button)` |
-| Notify me (out of stock) | `button.notify-me-button` |
-| Favourites heart | `.favouriteIcon` |
-
-### Cart (`cart.page.ts`)
-
-| Element | Selector |
-|---|---|
-| Cart items | `.woocommerce-cart-form .cart_item` |
-| Remove item button | `.cart_item .remove, .cart_item a.remove` |
-| Quantity input | `.cart_item input.qty` |
-| Update cart button | `button[name="update_cart"]` |
-| Cart subtotal | `.cart-subtotal .amount` |
-| Proceed to checkout | `.checkout-button, a[href*="checkout"]` |
-| Empty cart message | `.cart-empty, .wc-empty-cart-message` |
-
-### Checkout (`checkout.page.ts`)
-
-| Element | Selector |
-|---|---|
-| First name | `#billing_first_name` |
-| Last name | `#billing_last_name` |
-| Email | `#billing_email` |
-| Phone | `#billing_phone` |
-| Address | `#billing_address_1` |
-| City | `#billing_city` |
-| Postcode | `#billing_postcode` |
-| Payment method radio | `#payment_method_{method_id}` |
-| Place order button | `#place_order` |
-| Order success URL pattern | `**/order-received/**` |
-| Thank you message | `.woocommerce-thankyou-order-received` |
-
----
-
-## NPM Scripts Reference
-
-| Command | What it does |
-|---|---|
-| `npm test` | Run all tests with video recording (parallel workers = account count) |
-| `npm run test:headed` | Same but with visible browser windows |
-| `npm run test:smoke` | Smoke tests only (pages load, nav works) |
-| `npm run test:orders` | Order flow tests only |
-| `npm run test:parallel` | Force 10 parallel workers |
-| `npm run test:debug` | Step-through debug mode |
-| `npm run report` | Open the HTML report locally in browser |
-| `npm run report:save` | Copy report to `reports-history/<timestamp>/` |
-| `npm run report:upload` | Upload all reports to company website via rsync |
-| `npm run trace` | Run tests with full trace recording |
-
----
-
-## Reports & Sharing
-
-### Workflow after each test run
-
-```bash
-npm test                  # Run tests (videos auto-recorded)
-npm run report:save       # Save to reports-history/2026-02-07_14-30-00/
-npm run report:upload     # Upload to company website
-```
-
-### What gets uploaded
-
-```
-https://yourcompany.com/e2e-reports/
-├── index.html                         # Landing page listing ALL runs
-├── 2026-02-07_14-30-00/index.html     # Full report with videos
-├── 2026-02-08_09-15-22/index.html
-└── ...
-```
-
-### Configure upload destination
-
-Edit `scripts/upload-report.sh` and set:
-
-```bash
-REMOTE_USER="your-ssh-user"
-REMOTE_HOST="yourcompany.com"
-REMOTE_PATH="/var/www/html/e2e-reports"
-```
+- **Age Gate Plugin** (v3.7.2): Currently disabled. Sets a cookie after confirming age.
+- **Size Swatches**: Products use `.swatch-item` spans (not `<select>` dropdowns). Click the swatch, wait for price update.
+- **Quantity Buttons**: May be disabled when not logged in (`title="Log in to change quantity"`).
+- **AJAX Cart**: After adding to cart or updating quantity, use `waitForLoadState('domcontentloaded')`.
+- **Select2 Dropdowns**: Country/state fields on checkout use Select2. Need click container > type > click result.
+- **Login Button**: `#login-submit-btn` disabled by default, enabled via JS. Tests use `force: true` click.
+- **Amplefilter Plugin**: Provides THC/CBD dual-range sliders, strain/brand/size checkboxes on product category pages.
+- **Elementor**: Page builder used for content pages. Search box uses `.e-search-input` and `.e-search-submit`.
 
 ---
 
 ## Architecture Decisions
 
 | Decision | Why |
-|---|---|
+|----------|-----|
 | **Page Object Model** | Selectors change often on WooCommerce — isolate them so one HTML change = one file fix |
 | **Single data file** (`test-data.ts`) | Accounts, routes, and scenarios in one place — easy for any agent or dev to extend |
-| **Auth setup as separate project** | Login runs once per account, cookies reused across all tests — saves time |
-| **`fullyParallel: true`** | Each test gets its own isolated browser context — no shared state between tests |
-| **Video always on** | Every test recorded — essential for debugging failures and sharing with QA team |
-| **Trace on failure** | Full network + DOM + console captured when a test fails — but skipped on pass to save space |
+| **Separate public-routes.ts** | 50 browsing scenarios with filter configs separated from auth-required test data |
+| **GitHub Actions for concurrency** | Free, 10+ parallel machines with different IPs — truly simulates concurrent users |
+| **`domcontentloaded` wait strategy** | Third-party scripts (Klaviyo, Weglot) prevent `load` event — `domcontentloaded` is reliable |
+| **Real Chrome user-agent** | Cloudflare Enterprise blocks default HeadlessChrome user-agent |
+| **Auth setup as separate project** | Login runs once per account, cookies reused across all tests |
+| **`fullyParallel: true`** | Each test gets its own isolated browser context — no shared state |
+| **Video always on** | Every test recorded — essential for debugging and management review |
+| **Trace on failure** | Full network + DOM + console captured on failure — skipped on pass to save space |
 | **Retry: 1** | WooCommerce is AJAX-heavy and can be flaky — one retry catches transient issues |
+| **Blob reporter for shards** | Required by Playwright for merging reports from multiple machines |
 
 ---
 
-## WooCommerce-Specific Notes
+## NPM Scripts Reference
 
-- **Age Gate Plugin** (v3.7.2): Sets a cookie after confirming age. Auth setup saves this cookie so tests skip the popup.
-- **Size Swatches**: Products use `.swatch-item` spans (not `<select>` dropdowns). Click the swatch, wait for price update.
-- **Quantity Buttons**: Disabled when not logged in (`title="Log in to change quantity"`). Tests must authenticate first.
-- **AJAX Cart**: After adding to cart or updating quantity, always `waitForLoadState('networkidle')`.
-- **Select2 Dropdowns**: Country/state fields on checkout use Select2. May need special handling (click container, type search, click result).
-- **Login Button**: Disabled by default (`#login-submit-btn`), enabled via JS after fields are filled. Tests use `force: true` click.
+| Command | What it does |
+|---------|-------------|
+| `npm test` | Run all tests (parallel workers = account count) |
+| `npm run test:headed` | Same but with visible browser windows |
+| `npm run test:smoke` | Smoke tests only (pages load, nav works) |
+| `npm run test:orders` | Order flow tests only (needs real accounts) |
+| `npm run test:public` | Public browsing tests (10 local workers) |
+| `npm run test:browserstack` | Run on BrowserStack cloud browsers |
+| `npm run test:parallel` | Force 10 parallel workers |
+| `npm run test:debug` | Step-through debug mode |
+| `npm run report` | Open the HTML report locally |
+| `npm run report:save` | Copy report to `reports-history/<timestamp>/` |
+| `npm run report:upload` | Upload to company server via rsync |
+| `npm run report:browserstack` | Generate BrowserStack HTML report |
+| `npm run trace` | Run tests with full trace recording |
+
+---
+
+## Credentials & Access
+
+| Service | Details |
+|---------|---------|
+| **GitHub repo** | `mapperkids/abbamedix-e2e` |
+| **GitHub push** | HTTPS + personal access token (needs `workflow` scope). See `.env` or ask team lead. |
+| **BrowserStack** | Credentials in `.env` file (gitignored) |
+| **FTP (report hosting)** | Host: `groiq.ca`, Path: `/e2e/`. Credentials stored locally. |
+| **Target site** | `https://shop-abbamedix.sandbox.onample.com` |
+| **Test accounts** | 10 placeholder accounts in `test-data.ts` — awaiting real credentials |
