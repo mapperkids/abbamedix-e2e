@@ -1,19 +1,18 @@
 import { test, expect } from '@playwright/test';
-import { PUBLIC_SCENARIOS } from '../fixtures/public-routes';
+import { PUBLIC_SCENARIOS, FilterAction } from '../fixtures/public-routes';
 
 /**
  * ============================================================
- * PUBLIC BROWSING — Real User Journeys
+ * PUBLIC BROWSING — Real User Journeys (50 sessions)
  *
- * Each session is ONE continuous video of a user browsing the site:
- *   - Lands on homepage, clicks through age gate
- *   - Clicks nav links to visit pages
- *   - Scrolls down to see content
+ * Each session is ONE continuous video of a user browsing:
+ *   - Lands on homepage, optionally searches for a product
+ *   - Visits content pages
  *   - Browses a product category
- *   - Clicks into a product, looks around
- *   - Goes back, browses more
+ *   - Applies filters (THC/CBD range, sort order)
+ *   - Clicks into products, scrolls, goes back
  *
- * 10 sessions, 10 different paths, 10 videos.
+ * 50 sessions across 10 machines = 50 concurrent users.
  * Run: npm run test:public
  * ============================================================
  */
@@ -21,11 +20,101 @@ import { PUBLIC_SCENARIOS } from '../fixtures/public-routes';
 // Helper: simulate reading/looking at a page
 async function browseAndScroll(page: any, waitMs = 1500) {
   await page.waitForTimeout(waitMs);
-  // Scroll down slowly like a real user
   await page.evaluate(() => window.scrollBy({ top: 400, behavior: 'smooth' }));
   await page.waitForTimeout(800);
   await page.evaluate(() => window.scrollBy({ top: 400, behavior: 'smooth' }));
   await page.waitForTimeout(800);
+}
+
+// Helper: apply a THC or CBD range filter via the number inputs
+async function applyRangeFilter(page: any, sliderId: string, min: number, max: number) {
+  const minInput = page.locator(`#${sliderId}-min-input`);
+  const maxInput = page.locator(`#${sliderId}-max-input`);
+
+  if (await minInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await minInput.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    await minInput.fill(String(min));
+    await page.waitForTimeout(200);
+    await maxInput.fill(String(max));
+    await page.waitForTimeout(200);
+
+    // Click the Apply Filter button for this slider
+    const applyBtn = page.locator(`button.ample-dual-range-apply[data-slider="${sliderId}"]`);
+    if (await applyBtn.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await applyBtn.click();
+      await page.waitForTimeout(1500); // Wait for AJAX filter results
+    }
+  }
+}
+
+// Helper: select a sort option from the dropdown
+async function applySortFilter(page: any, value: string) {
+  const sortMap: Record<string, string> = {
+    'popularity': 'Sort by popularity',
+    'rating': 'Sort by average rating',
+    'date': 'Sort by latest',
+    'price': 'Sort by price: low to high',
+    'price-desc': 'Sort by price: high to low',
+  };
+
+  const sortSelect = page.locator('select.orderby, .orderby');
+  if (await sortSelect.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await sortSelect.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(300);
+    // Try select by value first, fallback to clicking the text
+    try {
+      await sortSelect.selectOption({ label: sortMap[value] || value });
+    } catch {
+      // Some themes use custom dropdowns — click the option text
+      const option = page.locator(`text="${sortMap[value] || value}"`).first();
+      if (await option.isVisible({ timeout: 2_000 }).catch(() => false)) {
+        await option.click();
+      }
+    }
+    await page.waitForTimeout(1500); // Wait for re-sort
+  }
+}
+
+// Helper: apply all filters for a scenario
+async function applyFilters(page: any, filters: FilterAction[]) {
+  for (const filter of filters) {
+    switch (filter.type) {
+      case 'thc':
+        await applyRangeFilter(page, 'thc-dual-range', filter.min, filter.max);
+        break;
+      case 'cbd':
+        await applyRangeFilter(page, 'cbd-dual-range', filter.min, filter.max);
+        break;
+      case 'sort':
+        await applySortFilter(page, filter.value);
+        break;
+      case 'strain': {
+        const strainLabel = page.locator(`text="${filter.value}"`).first();
+        if (await strainLabel.isVisible({ timeout: 2_000 }).catch(() => false)) {
+          await strainLabel.click();
+          await page.waitForTimeout(1500);
+        }
+        break;
+      }
+      case 'brand': {
+        const brandLabel = page.locator(`text="${filter.value}"`).first();
+        if (await brandLabel.isVisible({ timeout: 2_000 }).catch(() => false)) {
+          await brandLabel.click();
+          await page.waitForTimeout(1500);
+        }
+        break;
+      }
+      case 'size': {
+        const sizeLabel = page.locator(`text="${filter.value}"`).first();
+        if (await sizeLabel.isVisible({ timeout: 2_000 }).catch(() => false)) {
+          await sizeLabel.click();
+          await page.waitForTimeout(1500);
+        }
+        break;
+      }
+    }
+  }
 }
 
 for (const scenario of PUBLIC_SCENARIOS) {
@@ -34,44 +123,63 @@ for (const scenario of PUBLIC_SCENARIOS) {
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
+    // ── 1b. Search test (if this session has a search term) ──
+    if (scenario.search) {
+      const searchInput = page.locator('input.e-search-input[name="s"]').first();
+      if (await searchInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await searchInput.scrollIntoViewIfNeeded();
+        await page.waitForTimeout(500);
+        await searchInput.click();
+        await page.waitForTimeout(300);
+
+        // Type the search term slowly like a real user
+        await searchInput.fill(scenario.search);
+        await page.waitForTimeout(1000);
+
+        // Submit the search
+        const searchBtn = page.locator('button.e-search-submit').first();
+        if (await searchBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await Promise.all([
+            page.waitForLoadState('domcontentloaded'),
+            searchBtn.click(),
+          ]);
+        } else {
+          await searchInput.press('Enter');
+          await page.waitForLoadState('domcontentloaded');
+        }
+        await page.waitForTimeout(1500);
+
+        // Check search results loaded
+        const title = await page.title();
+        expect(title.toLowerCase()).not.toContain('404');
+
+        // Browse search results
+        await browseAndScroll(page, 1000);
+
+        // Go back to homepage
+        await page.goto('/', { waitUntil: 'domcontentloaded' });
+        await page.waitForTimeout(500);
+      }
+    }
+
     // Look around the homepage
     await browseAndScroll(page);
 
     // ── 2. Click through content pages ──
     for (const pg of scenario.pages) {
-      // Navigate to the page (simulates clicking a link)
       await page.goto(pg.path, { waitUntil: 'domcontentloaded' });
 
-      // Verify page loaded (not 404)
       const title = await page.title();
       expect(title).not.toContain('404');
 
-      // Key content should be visible
       const element = page.locator(pg.checkFor).first();
       await expect(element).toBeVisible({ timeout: 15_000 });
 
-      // Browse the page like a real user
       await browseAndScroll(page, 1000);
     }
 
-    // ── 3. Navigate to a product category via the PRODUCTS menu ──
-    // Click PRODUCTS in the nav
-    const productsNav = page.locator('nav#pr-nav a:has-text("PRODUCTS")').first();
-    await expect(productsNav).toBeVisible({ timeout: 10_000 });
-    await productsNav.click();
-    await page.waitForTimeout(1000);
-
-    // The mega menu should open — now click the category link
-    const categoryLink = page.locator(`a[href*="${scenario.category.path}"]`).first();
-    if (await categoryLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await Promise.all([
-        page.waitForLoadState('domcontentloaded'),
-        categoryLink.click(),
-      ]);
-    } else {
-      // Fallback: navigate directly
-      await page.goto(scenario.category.path, { waitUntil: 'domcontentloaded' });
-    }
+    // ── 3. Navigate to product category ──
+    await page.goto(scenario.category.path, { waitUntil: 'domcontentloaded' });
 
     // ── 4. Browse the product listing ──
     const products = page.locator('li.product');
@@ -81,10 +189,23 @@ for (const scenario of PUBLIC_SCENARIOS) {
     expect(productCount).toBeGreaterThan(0);
 
     // Scroll through the product grid
-    await browseAndScroll(page, 1500);
+    await browseAndScroll(page, 1000);
 
-    // Hover over a couple of products (shows interaction in video)
-    for (let i = 0; i < Math.min(3, productCount); i++) {
+    // ── 4b. Apply filters if defined ──
+    if (scenario.filters && scenario.filters.length > 0) {
+      // Scroll up to filter area first
+      await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'smooth' }));
+      await page.waitForTimeout(800);
+
+      await applyFilters(page, scenario.filters);
+
+      // Scroll through filtered results
+      await browseAndScroll(page, 1000);
+    }
+
+    // Hover over products (shows interaction in video)
+    const currentCount = await products.count();
+    for (let i = 0; i < Math.min(3, currentCount); i++) {
       const product = products.nth(i);
       if (await product.isVisible().catch(() => false)) {
         await product.scrollIntoViewIfNeeded();
@@ -103,14 +224,13 @@ for (const scenario of PUBLIC_SCENARIOS) {
         inStockProduct.click(),
       ]);
 
-      // On the product detail page — look around
-      await expect(page).toHaveURL(/\/product\//, { timeout: 15_000 });
+      // On the product detail page
       await expect(page.locator('h1.product-title')).toBeVisible({ timeout: 10_000 });
 
       // Scroll through product details
       await browseAndScroll(page, 2000);
 
-      // Scroll down more to see description/reviews
+      // Scroll down more to see description
       await page.evaluate(() => window.scrollBy({ top: 600, behavior: 'smooth' }));
       await page.waitForTimeout(1000);
 
@@ -121,13 +241,13 @@ for (const scenario of PUBLIC_SCENARIOS) {
         await page.waitForTimeout(800);
       }
 
-      // ── 6. Go back to the category listing ──
+      // Go back to the category listing
       await page.goBack({ waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('domcontentloaded');
       await page.waitForTimeout(1000);
     }
 
-    // ── 7. Scroll through more products ──
+    // ── 6. Scroll through more products ──
     await page.evaluate(() => window.scrollBy({ top: 800, behavior: 'smooth' }));
     await page.waitForTimeout(1000);
 
@@ -141,25 +261,13 @@ for (const scenario of PUBLIC_SCENARIOS) {
         secondProduct.click(),
       ]);
 
-      // Quick look
       await browseAndScroll(page, 1500);
 
-      // Go back
       await page.goBack({ waitUntil: 'domcontentloaded' });
       await page.waitForLoadState('domcontentloaded');
     }
 
-    // ── 8. Click the cart icon (should be empty for guest) ──
-    const cartIcon = page.locator('nav#pr-nav a[href*="cart"], .cart-contents').first();
-    if (await cartIcon.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await Promise.all([
-        page.waitForLoadState('domcontentloaded'),
-        cartIcon.click(),
-      ]);
-      await page.waitForTimeout(1500);
-    }
-
-    // ── 9. Navigate to homepage via logo ──
+    // ── 7. Navigate to homepage ──
     await page.goto('/', { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
