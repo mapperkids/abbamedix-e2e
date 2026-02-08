@@ -32,11 +32,20 @@ jobs:
         run: |
           npx playwright test --project=public \
             --workers=5 \
-            --shard=${{ matrix.shard }}/4
+            --shard=${{ matrix.shard }}/4 \
+            --reporter=blob
         env:
           CI: true
 
-      - name: Upload test results
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-shard-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 7
+
+      - name: Upload test results (videos)
         if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -44,15 +53,7 @@ jobs:
           path: test-results/
           retention-days: 30
 
-      - name: Upload HTML report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: html-report-shard-${{ matrix.shard }}
-          path: playwright-report/
-          retention-days: 30
-
-  # After all 4 shards finish, merge reports into one
+  # After all 4 shards finish, merge into one HTML report
   merge-reports:
     needs: e2e
     if: always()
@@ -72,21 +73,23 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Download all shard reports
+      - name: Download all blob reports
         uses: actions/download-artifact@v4
         with:
-          pattern: html-report-shard-*
-          path: all-reports/
+          pattern: blob-report-shard-*
+          path: all-blob-reports/
+          merge-multiple: true
 
       - name: Download all test results (videos)
         uses: actions/download-artifact@v4
         with:
           pattern: test-results-shard-*
           path: all-test-results/
+          merge-multiple: true
 
-      - name: Merge reports
+      - name: Merge into HTML report
         run: |
-          npx playwright merge-reports --reporter=html all-reports/*
+          npx playwright merge-reports --reporter=html all-blob-reports/
 
       - name: Bundle videos into report
         run: |
@@ -94,7 +97,8 @@ jobs:
           find all-test-results/ -name "*.webm" -exec cp {} playwright-report/videos/ \;
           echo "Videos found: $(ls playwright-report/videos/ | wc -l)"
 
-      - name: Upload final report (videos + HTML)
+      - name: Upload final report (HTML + videos)
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-full-report-with-videos
@@ -102,6 +106,7 @@ jobs:
           retention-days: 30
 
       - name: Upload all videos separately
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: e2e-all-videos
