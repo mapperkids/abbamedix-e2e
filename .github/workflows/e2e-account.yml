@@ -115,7 +115,8 @@ jobs:
         if: always()
         run: |
           sudo apt-get update && sudo apt-get install -y lftp
-          lftp -u wilcompute,GrowerIQ321 groiq.ca <<EOF
+          lftp -u wilcompute,GrowerIQ321 groiq.ca <<'EOF'
+          mkdir -p /e2e/10-accounts
           mirror --reverse --delete --verbose playwright-report/ /e2e/10-accounts/
           bye
           EOF
