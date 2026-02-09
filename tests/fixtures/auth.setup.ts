@@ -11,7 +11,7 @@ import { LoginPage } from '../../page-objects/login.page';
 for (let i = 0; i < TEST_ACCOUNTS.length; i++) {
   const account = TEST_ACCOUNTS[i];
 
-  setup(`authenticate account ${i + 1}: ${account.email}`, async ({ page }) => {
+  setup(`authenticate account ${i + 1}: ${account.clientId}`, async ({ page }) => {
     // 1. Handle age gate
     await page.goto('/');
     const ageGate = new AgeGatePage(page);
@@ -20,7 +20,7 @@ for (let i = 0; i < TEST_ACCOUNTS.length; i++) {
     // 2. Login
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login(account.email, account.password);
+    await loginPage.login(account.clientId, account.password);
     await loginPage.expectLoggedIn();
 
     // 3. Save authenticated state (cookies + localStorage)

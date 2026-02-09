@@ -24,7 +24,7 @@ test.describe('Login Flow', () => {
     const account = TEST_ACCOUNTS[0];
     const loginPage = new LoginPage(page);
     await loginPage.goto();
-    await loginPage.login(account.email, account.password);
+    await loginPage.login(account.clientId, account.password);
     await loginPage.expectLoggedIn();
   });
 

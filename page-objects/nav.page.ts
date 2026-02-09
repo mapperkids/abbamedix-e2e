@@ -10,7 +10,7 @@ export class NavPage {
   constructor(page: Page) {
     this.page = page;
     this.cartIcon = page.locator('nav#pr-nav .fa-shopping-cart, nav#pr-nav a[href*="cart"]');
-    this.accountIcon = page.locator('nav#pr-nav .fa-user, nav#pr-nav a[href*="my-account"]');
+    this.accountIcon = page.locator('.header-profile > .menu-item');
     this.searchIcon = page.locator('nav#pr-nav .fa-search');
     this.productsMenu = page.locator('#menu-item-31065');
   }

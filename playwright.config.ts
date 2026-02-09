@@ -72,6 +72,13 @@ export default defineConfig({
       },
     },
 
+    // ─── ACCOUNT tests (profile & card management) ───
+    {
+      name: 'account',
+      testMatch: /tests\/account\/.*/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
     // ─── AUTH tests (need credentials) ───
     {
       name: 'auth-setup',

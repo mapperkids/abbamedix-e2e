@@ -8,6 +8,7 @@
     "test:smoke": "npx playwright test tests/smoke/",
     "test:orders": "npx playwright test tests/orders/",
     "test:public": "npx playwright test --project=public --workers=10",
+    "test:account": "npx playwright test --project=account --workers=10",
     "test:browserstack": "npx playwright test --project=browserstack --workers=10",
     "test:parallel": "npx playwright test --workers=10",
     "test:debug": "npx playwright test --debug",

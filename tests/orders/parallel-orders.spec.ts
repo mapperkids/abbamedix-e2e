@@ -22,7 +22,7 @@ import { CheckoutPage } from '../../page-objects/checkout.page';
 for (const scenario of ORDER_SCENARIOS) {
   const account = TEST_ACCOUNTS[scenario.accountIndex];
 
-  base(`Parallel Order: ${scenario.name} (${account.email})`, async ({ browser }) => {
+  base(`Parallel Order: ${scenario.name} (${account.clientId})`, async ({ browser }) => {
     // Each test creates its own fresh context with its own account
     const context = await browser.newContext({
       recordVideo: { dir: './test-results/videos/' },
@@ -38,7 +38,7 @@ for (const scenario of ORDER_SCENARIOS) {
       // 2. Login with this scenario's dedicated account
       const loginPage = new LoginPage(page);
       await loginPage.goto();
-      await loginPage.login(account.email, account.password);
+      await loginPage.login(account.clientId, account.password);
       await loginPage.expectLoggedIn();
 
       // 3. Clear any existing cart

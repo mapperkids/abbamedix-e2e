@@ -7,8 +7,8 @@ export class LoginPage {
     await this.page.goto('/my-account/');
   }
 
-  async login(email: string, password: string) {
-    await this.page.locator('#username').fill(email);
+  async login(clientId: string, password: string) {
+    await this.page.locator('#username').fill(clientId);
     await this.page.locator('#password').fill(password);
     // The login button may be disabled until fields are filled — wait for it
     const loginBtn = this.page.locator('#login-submit-btn');

@@ -6,16 +6,16 @@
  * ============================================================
  */
 export const TEST_ACCOUNTS = [
-  { email: 'tester1@example.com', password: 'CHANGE_ME' },
-  { email: 'tester2@example.com', password: 'CHANGE_ME' },
-  { email: 'tester3@example.com', password: 'CHANGE_ME' },
-  { email: 'tester4@example.com', password: 'CHANGE_ME' },
-  { email: 'tester5@example.com', password: 'CHANGE_ME' },
-  { email: 'tester6@example.com', password: 'CHANGE_ME' },
-  { email: 'tester7@example.com', password: 'CHANGE_ME' },
-  { email: 'tester8@example.com', password: 'CHANGE_ME' },
-  { email: 'tester9@example.com', password: 'CHANGE_ME' },
-  { email: 'tester10@example.com', password: 'CHANGE_ME' },
+  { clientId: '2246-3594-5067-6181', password: 'WCSandbox321' },
+  { clientId: '6624-6029-3419-7992', password: 'WCSandbox321' },
+  { clientId: '9766-3751-4801-3208', password: 'WCSandbox321' },
+  { clientId: '9281-7590-3959-9291', password: 'WCSandbox321' },
+  { clientId: '3879-3132-5322-0516', password: 'WCSandbox321' },
+  { clientId: '6049-9580-9576-5153', password: 'WCSandbox321' },
+  { clientId: '9388-7517-1232-3269', password: 'WCSandbox321' },
+  { clientId: '7067-2719-0010-1968', password: 'WCSandbox321' },
+  { clientId: '7650-1889-1132-9212', password: 'WCSandbox321' },
+  { clientId: '2969-6953-7775-7863', password: 'WCSandbox321' },
 ];
 
 /**
@@ -142,3 +142,33 @@ export const ORDER_SCENARIOS = [
     quantity: 1,
   },
 ];
+
+/**
+ * ============================================================
+ * CARD TEST DATA — Unique billing info per account for card tests.
+ * Index matches TEST_ACCOUNTS index.
+ * ============================================================
+ */
+export const CARD_TEST_DATA = [
+  { firstName: 'Alice',   lastName: 'Anderson', street: 'Maple St',    streetNumber: '101', postalCode: 'V5K 0A1' },
+  { firstName: 'Bob',     lastName: 'Baker',    street: 'Oak Ave',     streetNumber: '202', postalCode: 'M5V 2T6' },
+  { firstName: 'Carol',   lastName: 'Carter',   street: 'Pine Rd',     streetNumber: '303', postalCode: 'T2P 1J9' },
+  { firstName: 'David',   lastName: 'Davis',    street: 'Elm Blvd',    streetNumber: '404', postalCode: 'K1A 0B1' },
+  { firstName: 'Eve',     lastName: 'Edwards',  street: 'Cedar Ln',    streetNumber: '505', postalCode: 'R3C 4A5' },
+  { firstName: 'Frank',   lastName: 'Fisher',   street: 'Birch Dr',    streetNumber: '606', postalCode: 'S4P 3Y2' },
+  { firstName: 'Grace',   lastName: 'Garcia',   street: 'Spruce Way',  streetNumber: '707', postalCode: 'E1C 1B5' },
+  { firstName: 'Henry',   lastName: 'Hughes',   street: 'Willow Ct',   streetNumber: '808', postalCode: 'A1B 3X9' },
+  { firstName: 'Irene',   lastName: 'Irving',   street: 'Aspen Pl',    streetNumber: '909', postalCode: 'C1A 4K9' },
+  { firstName: 'Jack',    lastName: 'Johnson',  street: 'Poplar Cres', streetNumber: '110', postalCode: 'G1R 4P5' },
+];
+
+/**
+ * ============================================================
+ * TEST CARD — Stripe test Visa card for sandbox payment tests.
+ * ============================================================
+ */
+export const TEST_CARD = {
+  number: '4242424242424242',
+  expiry: '12/28',
+  cvc: '123',
+};
