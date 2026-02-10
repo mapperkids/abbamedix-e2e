@@ -27,10 +27,10 @@ export class RegistrationPage {
     }
     await this.page.getByPlaceholder('Last Name *').first().fill(data.lastName);
 
-    // Date of Birth
-    await this.page.getByPlaceholder('Year *').fill(data.dob.year);
-    await this.page.getByPlaceholder('Month *').fill(data.dob.month);
-    await this.page.getByPlaceholder('Day *').fill(data.dob.day);
+    // Date of Birth — use CSS attribute contains to avoid exact-match whitespace issues
+    await this.page.locator('input[placeholder*="Year"]').first().fill(data.dob.year);
+    await this.page.locator('input[placeholder*="Month"]').first().fill(data.dob.month);
+    await this.page.locator('input[placeholder*="Day"]').first().fill(data.dob.day);
 
     // Contact info
     await this.page.getByPlaceholder('Email *').first().fill(data.email);
