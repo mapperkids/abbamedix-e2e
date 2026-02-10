@@ -30,7 +30,7 @@ export class RegistrationPage {
     // Date of Birth
     await this.page.getByPlaceholder('Year *').fill(data.dob.year);
     await this.page.getByPlaceholder('Month *').fill(data.dob.month);
-    await this.page.getByPlaceholder('Day*').fill(data.dob.day);
+    await this.page.getByPlaceholder('Day *').fill(data.dob.day);
 
     // Contact info
     await this.page.getByPlaceholder('Email *').first().fill(data.email);
