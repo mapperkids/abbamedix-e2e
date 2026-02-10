@@ -5,9 +5,12 @@ export class RegistrationPage {
 
   /** Scroll past the login form to the registration section */
   async scrollToRegistrationForm() {
-    const heading = this.page.getByText('DON\'T HAVE AN ACCOUNT?');
+    // Wait for page content to fully render
+    await this.page.waitForLoadState('networkidle');
+    // Heading may use curly apostrophe (') or straight (') — match either
+    const heading = this.page.getByText(/DON.T HAVE AN ACCOUNT/i);
+    await heading.waitFor({ state: 'visible', timeout: 30_000 });
     await heading.scrollIntoViewIfNeeded();
-    await expect(heading).toBeVisible({ timeout: 10_000 });
   }
 
   /** Fill Patient Information section */
