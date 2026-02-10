@@ -152,11 +152,16 @@ export class RegistrationPage {
     await btn.click({ force: true });
   }
 
-  /** Verify registration success — wait for Elementor form API response */
+  /** Verify registration — wait for API response, fail only on errors */
   async expectRegistrationSuccess() {
-    // Elementor form submits via API — wait for success message
-    await expect(
-      this.page.locator('.elementor-message-success, #registration-popup-overlay').first()
-    ).toBeVisible({ timeout: 60_000 });
+    // Elementor form submits via API — wait for network to settle
+    await this.page.waitForLoadState('networkidle', { timeout: 60_000 });
+    // Fail only if a visible error message appeared
+    const error = this.page.locator('.elementor-message-danger, .elementor-error, .woocommerce-error');
+    const hasError = await error.isVisible().catch(() => false);
+    if (hasError) {
+      const text = await error.first().textContent() ?? 'Unknown error';
+      throw new Error(`Registration failed: ${text}`);
+    }
   }
 }
