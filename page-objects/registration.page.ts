@@ -67,8 +67,8 @@ export class RegistrationPage {
     await this.page.getByPlaceholder('Street *').first().fill(data.street);
     await this.page.getByPlaceholder('City *').first().fill(data.city);
 
-    // Province dropdown — first "Select a Province *" on the page
-    const provinceSelect = this.page.locator('select').first();
+    // Province dropdown — exclude hidden flatpickr month selects
+    const provinceSelect = this.page.locator('select:not(.flatpickr-monthDropdown-months)').first();
     await provinceSelect.selectOption({ label: data.province });
 
     await this.page.getByPlaceholder('Postal Code *').first().fill(data.postalCode);
@@ -116,8 +116,8 @@ export class RegistrationPage {
     await this.page.getByPlaceholder('Street *').last().fill(data.street);
     await this.page.getByPlaceholder('City *').last().fill(data.city);
 
-    // Caregiver province dropdown — last select on the page
-    const provinceSelect = this.page.locator('select').last();
+    // Caregiver province dropdown — exclude hidden flatpickr month selects
+    const provinceSelect = this.page.locator('select:not(.flatpickr-monthDropdown-months)').last();
     await provinceSelect.selectOption({ label: data.province });
 
     await this.page.getByPlaceholder('Postal Code *').last().fill(data.postalCode);
