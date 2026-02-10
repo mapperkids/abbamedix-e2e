@@ -144,9 +144,12 @@ export class RegistrationPage {
 
   /** Click REGISTER NOW button */
   async clickRegisterNow() {
+    // Wait for registration-popup-overlay to disappear (appears after reCAPTCHA)
+    const overlay = this.page.locator('#registration-popup-overlay');
+    await overlay.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
     const btn = this.page.getByRole('button', { name: /register now/i });
     await btn.scrollIntoViewIfNeeded();
-    await btn.click();
+    await btn.click({ force: true });
   }
 
   /** Verify registration success — check for redirect or success message */
