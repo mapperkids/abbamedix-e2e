@@ -152,14 +152,11 @@ export class RegistrationPage {
     await btn.click({ force: true });
   }
 
-  /** Verify registration success — check for redirect or success message */
+  /** Verify registration success — wait for Elementor form API response */
   async expectRegistrationSuccess() {
-    // After registration, site may show a success message, redirect to dashboard,
-    // or show "check your email". Wait for any of these indicators.
+    // Elementor form submits via API — wait for success message
     await expect(
-      this.page.locator(
-        '.woocommerce-message, .woocommerce-MyAccount-navigation, .woocommerce-MyAccount-content'
-      ).first()
-    ).toBeVisible({ timeout: 30_000 });
+      this.page.locator('.elementor-message-success, #registration-popup-overlay').first()
+    ).toBeVisible({ timeout: 60_000 });
   }
 }
