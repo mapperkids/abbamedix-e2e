@@ -90,10 +90,15 @@ jobs:
         run: |
           npx playwright merge-reports --reporter=html all-blob-reports/
 
-      - name: Bundle videos into report
+      - name: Bundle videos into report (unique names to avoid overwrites)
         run: |
           mkdir -p playwright-report/videos
-          find all-test-results/ -name "*.webm" -exec cp {} playwright-report/videos/ \;
+          i=0
+          find all-test-results/ -name "*.webm" | while read f; do
+            i=$((i+1))
+            dir=$(basename "$(dirname "$f")")
+            cp "$f" "playwright-report/videos/${dir}--video.webm"
+          done
           echo "Videos found: $(ls playwright-report/videos/ | wc -l)"
 
       - name: Upload final report (HTML + videos)
