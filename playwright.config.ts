@@ -86,6 +86,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
 
+    // ─── REGISTRATION tests (new account registration) ───
+    {
+      name: 'registration',
+      testMatch: /tests\/registration\/.*/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
     // ─── AUTH tests (need credentials) ───
     {
       name: 'auth-setup',

@@ -10,6 +10,7 @@
     "test:public": "npx playwright test --project=public --workers=10",
     "test:account": "npx playwright test --project=account --workers=10",
     "test:orders": "npx playwright test --project=orders --workers=10",
+    "test:registration": "npx playwright test --project=registration --workers=10",
     "test:browserstack": "npx playwright test --project=browserstack --workers=10",
     "test:parallel": "npx playwright test --workers=10",
     "test:debug": "npx playwright test --debug",
