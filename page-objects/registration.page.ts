@@ -132,10 +132,12 @@ export class RegistrationPage {
 
   /** Click reCAPTCHA checkbox inside its iframe */
   async clickRecaptcha() {
+    // Scroll the reCAPTCHA iframe into view on the main page first
+    const recaptchaIframe = this.page.locator('iframe[title*="reCAPTCHA"]');
+    await recaptchaIframe.scrollIntoViewIfNeeded();
+    // Click the checkbox inside the iframe
     const recaptchaFrame = this.page.frameLocator('iframe[title*="reCAPTCHA"]');
-    const checkbox = recaptchaFrame.locator('#recaptcha-anchor');
-    await checkbox.scrollIntoViewIfNeeded();
-    await checkbox.click();
+    await recaptchaFrame.locator('#recaptcha-anchor').click({ timeout: 10_000 });
     // Wait for the checkmark to appear (green tick)
     await this.page.waitForTimeout(2_000);
   }
