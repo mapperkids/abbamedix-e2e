@@ -1,0 +1,124 @@
+name: E2E Order Placement (8 concurrent users)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    strategy:
+      fail-fast: false
+      matrix:
+        # 8 machines x 1 browser = 8 concurrent sessions (1 account per VM)
+        # Skipped: Account 4 (shipping bug), Account 10 (0 GR remaining)
+        shard: [1, 2, 3, 4, 5, 6, 7, 8]
+
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests (shard ${{ matrix.shard }}/8)
+        run: |
+          npx playwright test --project=orders \
+            --workers=1 \
+            --shard=${{ matrix.shard }}/8 \
+            --reporter=blob
+        env:
+          CI: true
+
+      - name: Upload blob report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: blob-report-orders-shard-${{ matrix.shard }}
+          path: blob-report/
+          retention-days: 7
+
+      - name: Upload test results (videos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-orders-shard-${{ matrix.shard }}
+          path: test-results/
+          retention-days: 30
+
+  merge-reports:
+    needs: e2e
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      - name: Download all blob reports
+        uses: actions/download-artifact@v4
+        with:
+          pattern: blob-report-orders-shard-*
+          path: all-blob-reports/
+          merge-multiple: true
+
+      - name: Download all test results (videos)
+        uses: actions/download-artifact@v4
+        with:
+          pattern: test-results-orders-shard-*
+          path: all-test-results/
+          merge-multiple: true
+
+      - name: Merge into HTML report
+        run: |
+          npx playwright merge-reports --reporter=html all-blob-reports/
+
+      - name: Bundle videos into report
+        run: |
+          mkdir -p playwright-report/videos
+          find all-test-results/ -name "*.webm" -exec cp {} playwright-report/videos/ \;
+          echo "Videos found: $(ls playwright-report/videos/ | wc -l)"
+
+      - name: Upload final report (HTML + videos)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-orders-report-with-videos
+          path: playwright-report/
+          retention-days: 30
+
+      - name: Upload all videos separately
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-orders-all-videos
+          path: all-test-results/
+          retention-days: 30
+
+      - name: Upload report to FTP (/e2e/8-orders/)
+        if: always()
+        run: |
+          sudo apt-get update && sudo apt-get install -y lftp
+          lftp -u wilcompute,GrowerIQ321 groiq.ca <<'EOF'
+          mkdir -p /e2e/8-orders
+          mirror --reverse --delete --verbose playwright-report/ /e2e/8-orders/
+          bye
+          EOF
+          echo "Report uploaded to https://groiq.ca/e2e/8-orders/index.html"

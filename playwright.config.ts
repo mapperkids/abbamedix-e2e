@@ -79,6 +79,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
 
+    // ─── ORDER tests (multi-product order placement) ───
+    {
+      name: 'orders',
+      testMatch: /tests\/orders\/.*/,
+      use: { ...devices['Desktop Chrome'] },
+    },
+
     // ─── AUTH tests (need credentials) ───
     {
       name: 'auth-setup',

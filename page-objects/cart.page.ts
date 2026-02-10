@@ -2,68 +2,71 @@ import { Page, Locator, expect } from '@playwright/test';
 
 export class CartPage {
   readonly page: Page;
-  readonly cartItems: Locator;
-  readonly cartTotal: Locator;
-  readonly checkoutButton: Locator;
-  readonly emptyCartMessage: Locator;
 
   constructor(page: Page) {
     this.page = page;
-    this.cartItems = page.locator('.woocommerce-cart-form .cart_item, .cart-item');
-    this.cartTotal = page.locator('.cart-subtotal .amount, .order-total .amount');
-    this.checkoutButton = page.locator('.checkout-button, a[href*="checkout"]');
-    this.emptyCartMessage = page.locator('.cart-empty, .wc-empty-cart-message');
   }
 
   async goto() {
-    await this.page.goto('/cart/');
-    await this.page.waitForLoadState('networkidle');
+    await this.page.goto('/cart/', { waitUntil: 'domcontentloaded' });
+    await this.page.waitForTimeout(2000);
+  }
+
+  /** Get all REMOVE links/buttons in the cart */
+  private get removeLinks(): Locator {
+    return this.page.getByText('REMOVE', { exact: true });
   }
 
   /** Get the number of items in the cart */
   async getItemCount(): Promise<number> {
-    return await this.cartItems.count();
+    await this.page.waitForTimeout(1000);
+    return await this.removeLinks.count();
   }
 
-  /** Remove a cart item by its row index (0-based) */
+  /** Wait for WooCommerce blockUI overlay to disappear */
+  private async waitForBlockUI() {
+    const overlay = this.page.locator('.blockUI.blockOverlay');
+    if (await overlay.isVisible({ timeout: 1_000 }).catch(() => false)) {
+      await overlay.waitFor({ state: 'hidden', timeout: 15_000 });
+    }
+  }
+
+  /** Remove a cart item by its index (0-based) */
   async removeItem(index: number) {
-    const removeBtn = this.cartItems.nth(index).locator('.remove, a.remove');
-    await removeBtn.click();
-    await this.page.waitForLoadState('networkidle');
+    const count = await this.removeLinks.count();
+    if (count === 0) return;
+    const safeIndex = Math.min(index, count - 1);
+    await this.waitForBlockUI();
+    await this.removeLinks.nth(safeIndex).scrollIntoViewIfNeeded();
+    await this.removeLinks.nth(safeIndex).click();
+    // Wait for AJAX cart update + blockUI to finish
+    await this.page.waitForTimeout(2000);
+    await this.waitForBlockUI();
   }
 
   /** Remove all items from the cart */
   async clearCart() {
-    const count = await this.getItemCount();
-    for (let i = count - 1; i >= 0; i--) {
-      await this.removeItem(0); // always remove first since list shifts
+    let count = await this.getItemCount();
+    while (count > 0) {
+      await this.removeItem(0);
+      count = await this.getItemCount();
     }
   }
 
-  /** Update quantity for a cart item by row index */
-  async updateQuantity(index: number, quantity: number) {
-    const qtyInput = this.cartItems.nth(index).locator('input.qty, input[type="number"]');
-    await qtyInput.fill(String(quantity));
-    const updateBtn = this.page.locator('button[name="update_cart"], .update-cart');
-    if (await updateBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await updateBtn.click();
+  /** Assert the cart has the expected number of items */
+  async expectItemCount(expected: number) {
+    // Retry for up to 15 seconds (cart updates via AJAX)
+    for (let attempt = 0; attempt < 10; attempt++) {
+      const count = await this.getItemCount();
+      if (count === expected) return;
+      await this.page.waitForTimeout(1500);
     }
-    await this.page.waitForLoadState('networkidle');
+    const finalCount = await this.removeLinks.count();
+    expect(finalCount).toBe(expected);
   }
 
-  /** Proceed to checkout */
-  async proceedToCheckout() {
-    await this.checkoutButton.click();
-    await this.page.waitForLoadState('networkidle');
-  }
-
-  /** Assert cart is not empty */
+  /** Assert cart has items (any number > 0) */
   async expectHasItems() {
-    await expect(this.cartItems.first()).toBeVisible({ timeout: 10_000 });
-  }
-
-  /** Assert cart is empty */
-  async expectEmpty() {
-    await expect(this.emptyCartMessage).toBeVisible({ timeout: 10_000 });
+    await expect(this.removeLinks.first()).toBeVisible({ timeout: 15_000 });
   }
 }

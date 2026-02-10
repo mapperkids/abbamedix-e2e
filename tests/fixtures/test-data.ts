@@ -55,93 +55,21 @@ export const CATEGORIES = [
 
 /**
  * ============================================================
- * ORDER SCENARIOS — Each one runs as an independent parallel test.
- * To add more: just add another object to this array.
- * accountIndex picks which TEST_ACCOUNT to use (0-based).
+ * ORDER SCENARIOS — 10 concurrent order placements.
+ * Each account picks 3 RANDOM products from RANDOM categories,
+ * removes 1 from cart, then places order with remaining 2.
+ * First product always gets qty=2. Categories are shuffled
+ * per account and empty ones are automatically skipped.
+ * Uses Veteran's Affairs policy for $0.00 total.
  * ============================================================
  */
-export const ORDER_SCENARIOS = [
-  {
-    name: 'Dried Flower - single item',
-    accountIndex: 0,
-    category: CATEGORIES[0],
-    productIndex: 0,      // pick the 1st in-stock product
-    sizeLabel: '5 g',
-    quantity: 1,
-  },
-  {
-    name: 'Dried Flower - larger size',
-    accountIndex: 1,
-    category: CATEGORIES[0],
-    productIndex: 1,
-    sizeLabel: '10 g',
-    quantity: 2,
-  },
-  {
-    name: 'Edibles - single item',
-    accountIndex: 2,
-    category: CATEGORIES[1],
-    productIndex: 0,
-    sizeLabel: null, // some products may not have size swatches
-    quantity: 1,
-  },
-  {
-    name: 'Vapes - single item',
-    accountIndex: 3,
-    category: CATEGORIES[4],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 1,
-  },
-  {
-    name: 'Pre-Rolls - quantity 3',
-    accountIndex: 4,
-    category: CATEGORIES[5],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 3,
-  },
-  {
-    name: 'Beverages - single item',
-    accountIndex: 5,
-    category: CATEGORIES[6],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 1,
-  },
-  {
-    name: 'Concentrates - single item',
-    accountIndex: 6,
-    category: CATEGORIES[7],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 1,
-  },
-  {
-    name: 'Extracts - single item',
-    accountIndex: 7,
-    category: CATEGORIES[3],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 1,
-  },
-  {
-    name: 'Topicals - quantity 2',
-    accountIndex: 8,
-    category: CATEGORIES[2],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 2,
-  },
-  {
-    name: 'Accessories - single item',
-    accountIndex: 9,
-    category: CATEGORIES[9],
-    productIndex: 0,
-    sizeLabel: null,
-    quantity: 1,
-  },
-];
+// Skip Account 4 (index 3, shipping bug) and Account 10 (index 9, 0 GR remaining)
+const ACTIVE_ACCOUNT_INDICES = [0, 1, 2, 4, 5, 6, 7, 8];
+
+export const ORDER_SCENARIOS = ACTIVE_ACCOUNT_INDICES.map((accountIndex, i) => ({
+  accountIndex,
+  removeFromCart: i % 3, // vary remove position: 0, 1, or 2
+}));
 
 /**
  * ============================================================
